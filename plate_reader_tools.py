@@ -4,12 +4,12 @@ import numpy as np
 import pandas as pd
 import math
 
-def readplate(filename,sheetname,skiprows,rows,columns,datalabels,cycles):
+def readplate(filename,sheetname,skiprows,rows,columns,datalabels,cycles,horz):
     wholetc = pd.read_excel(filename,sheetname=sheetname,skiprows=skiprows)
 
-    #Determine how the excel sheet is formatted:
-    #1)The sheet can be formatted with cycle #s as the rows, or
-    #2)With the well label as the rows
+    #Determine how the excel sheet is formatted: if horz == 1 then the cycle numbers run horizontally, otherwise if horz == 0 then the cycle numbers run vertically
+
+
     col_labels = []
     for i in range(rows):
         for j in range(columns):
@@ -23,21 +23,26 @@ def readplate(filename,sheetname,skiprows,rows,columns,datalabels,cycles):
     for i in range(len(datalabels[1:])):
         d[datalabels[i+1]] = data
 
-    c = 0
-    ind = 0
+    cycleindex = 0
+    dataindex = 0
+
+    d[datalabels[dataindex]].set_value(cycleindex,col_labels,wholetc[col_labels].iloc[i])
 
     #Check for case #1
-    if wholetc.iloc[3,0] == 4:
+    if horz == 0:
         t = wholetc['Time [s]'].iloc[0:cycles].values/float(3600)
+
         for i in range(len(wholetc.iloc[:,0])):
-            if wholetc.iloc[i,0] < cycles:
-                d[datalabels[ind]].set_value(c,col_labels,wholetc[col_labels].iloc[i])
-                c = c + 1
-            elif wholetc.iloc[i,0] == cycles:
-                d[datalabels[ind]].set_value(c,col_labels,wholetc[col_labels].iloc[i])
-                c = 0
-                ind = ind + 1
-            else:
+            try:
+                num = int(wholetc.iloc[i,0])
+                if num < cycles:
+                    d[datalabels[dataindex]].loc[cycleindex] = wholetc[col_labels].iloc[i]
+                    cycleindex = cycleindex + 1
+                elif num == cycles:
+                    d[datalabels[dataindex]].loc[cycleindex] = wholetc[col_labels].iloc[i]
+                    cycleindex = 0
+                    dataindex = dataindex + 1
+            except ValueError:
                 continue
 
     #Check for case #2
@@ -45,12 +50,12 @@ def readplate(filename,sheetname,skiprows,rows,columns,datalabels,cycles):
         t = wholetc.iloc[0,1:cycles+1].values/float(3600)
         for i in range(len(wholetc.iloc[:,0])):
             if (wholetc.iloc[i,0] in col_labels and wholetc.iloc[i,0] != 'H12'):
-                d[datalabels[ind]][col_labels[c]] = (wholetc.iloc[i,1:cycles+1])
-                c = c+1
+                d[datalabels[dataindex]][col_labels[c]] = (wholetc.iloc[i,1:cycles+1])
+                cycleindex = cycleindex + 1
             elif wholetc.iloc[i,0] == 'H12':
-                d[datalabels[ind]][col_labels[c]] = (wholetc.iloc[i,1:cycles+1])
-                c = 0
-                ind = ind + 1
+                d[datalabels[dataindex]][col_labels[c]] = (wholetc.iloc[i,1:cycles+1])
+                cycleindex = 0
+                dataindex = dataindex + 1
             else:
                 continue
     return [d,t]
@@ -72,24 +77,37 @@ def computegrowthrate(OD,t):
         tdiff = t[i+2]-t[i]
         twostep[i]=ODdiff/tdiff
 
-        #Find the max growth rate for each well
+    #Find the max growth rate for each well
 
     vals = np.isnan(twostep[0,:])
     flipvals = [not i for i in vals]
     twostep[0,flipvals]
 
     maxind=np.empty(len(twostep[0,:]))
+
     for i in range(len(twostep[0,:])):
         maxind[i]=np.argmax(twostep[:,i])
 
-    return [twostep, maxind]
+    maxgrowth = np.empty([8,12])
+
+    for i in range(12):
+        for j in range(8):
+            maxgrowth[j,i] = np.max(twostep[:,i+j*12])
+
+    maxOD = np.empty([8,12])
+
+    for i in range(12):
+        for j in range(8):
+            maxOD[j,i] = np.max(OD.iloc[:,i+j*12])
+
+    return [twostep, maxind, maxgrowth, maxOD]
 
 def exponentialvalues(maxind,vals):
-    maxin = np.empty(96)
-    for i in range(96):
-        maxin[i]=np.mean([vals.iloc[int(maxind[i]-1),i],vals.iloc[int(maxind[i]),i],vals.iloc[int(maxind[i]+1),i]])
-
-    return maxin
+    plate = np.empty([8,12])
+    for i in range(8):
+        for j in range(12):
+            plate[i,j] = np.nanmean([vals.iloc[int(maxind[i*12+j]-1),i*12+j],vals.iloc[int(maxind[i*12+j]),i*12+j],vals.iloc[int(maxind[i*12+j]+1),i*12+j]])
+    return plate
 
 def tptoplate(cycle,df):
     #takes a cycle number (or an array of cycle numbers) and generates a 96 well plate formatted array from the data
