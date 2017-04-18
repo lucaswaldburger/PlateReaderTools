@@ -66,15 +66,14 @@ def computegrowthrate(OD,t):
     #One step
     onestep = np.empty([len(t)-1,len(OD.columns)])
     for i in range(len(t)-1):
-        ODdiff = (OD.iloc[i+1,:]-OD.iloc[i,:])/OD.iloc[i,:]
+        ODdiff = (OD.iloc[i+1,:]-OD.iloc[i,:])
         tdiff = t[i+1]-t[i]
         onestep[i]=ODdiff/tdiff
 
     #Two step
     twostep = np.empty([len(t)-2,len(OD.columns)])
     for i in range(len(t)-2):
-        ODdiff = (OD.iloc[i+2,:]-OD.iloc[i,:])/OD.iloc[i,:]
-        tdiff = t[i+2]-t[i]
+        ODdiff = (OD.iloc[i+2,:]-OD.iloc[i,:])
         twostep[i]=ODdiff/tdiff
 
     #Find the max growth rate for each well
