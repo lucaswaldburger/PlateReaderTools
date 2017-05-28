@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import math
+import string
 
 def readplate(filename,sheetname,skiprows,rows,columns,datalabels,cycles,horz):
     wholetc = pd.read_excel(filename,sheetname=sheetname,skiprows=skiprows)
@@ -64,61 +65,65 @@ def computegrowthrate(OD,t):
     #Calculate the growth rate in doublings per hour
 
     #One step
-    onestep = np.empty([len(t)-1,len(OD.columns)])
-    for i in range(len(t)-1):
-        ODdiff = (OD.iloc[i+1,:]-OD.iloc[i,:])
-        tdiff = t[i+1]-t[i]
-        onestep[i]=ODdiff/tdiff
+    onestep = pd.DataFrame(index = OD.index[0:-1], columns = OD.columns)
+    for idx, index in enumerate(OD.index[0:-1]):
+        ODdiff = (OD.iloc[idx+1,:]-OD.iloc[idx,:])
+        tdiff = t[idx+1]-t[idx]
+        onestep.set_value(index, OD.columns, ODdiff/tdiff)
 
     #Two step
-    twostep = np.empty([len(t)-2,len(OD.columns)])
-    for i in range(len(t)-2):
-        ODdiff = (OD.iloc[i+2,:]-OD.iloc[i,:])
-        twostep[i]=ODdiff/tdiff
+    twostep = pd.DataFrame(index = OD.index[0:-2], columns = OD.columns)
+    for idx, index in enumerate(OD.index[0:-2]):
+        ODdiff = (OD.iloc[idx+2,:]-OD.iloc[idx,:])
+        tdiff = t[idx+2]-t[idx]
+        twostep.set_value(index, OD.columns, ODdiff/tdiff)
 
     #Find the max growth rate for each well
 
-    vals = np.isnan(twostep[0,:])
-    flipvals = [not i for i in vals]
-    twostep[0,flipvals]
+    vals = twostep.iloc[0,:].notnull()
+    twostep.iloc[0,:][vals]
 
-    maxind=np.empty(len(twostep[0,:]))
+    maxind = twostep.idxmax()
 
-    for i in range(len(twostep[0,:])):
-        maxind[i]=np.argmax(twostep[:,i])
+    maxgrowth = twostep.max()
 
-    maxgrowth = np.empty([8,12])
-
-    for i in range(12):
-        for j in range(8):
-            maxgrowth[j,i] = np.max(twostep[:,i+j*12])
-
-    maxOD = np.empty([8,12])
-
-    for i in range(12):
-        for j in range(8):
-            maxOD[j,i] = np.max(OD.iloc[:,i+j*12])
+    maxOD = OD.max()
 
     return [twostep, maxind, maxgrowth, maxOD]
 
 def exponentialvalues(maxind,vals):
-    plate = np.empty([8,12])
-    for i in range(8):
-        for j in range(12):
-            plate[i,j] = np.nanmean([vals.iloc[int(maxind[i*12+j]-1),i*12+j],vals.iloc[int(maxind[i*12+j]),i*12+j],vals.iloc[int(maxind[i*12+j]+1),i*12+j]])
+    idx = [string.uppercase[i] for i in range(8)]
+    x = range(12)
+    cols = [col+1 for col in x]
+
+    plate = pd.DataFrame(index = idx, columns = cols)
+
+    for i in idx:
+        for j in cols:
+            index = i + str(j)
+            if math.isnan(maxind[index]):
+                plate.set_value(i,j,np.nan)
+            else:
+                plate.set_value(i,j,np.nanmean([vals.loc[int(maxind[index])-1,index],vals.loc[int(maxind[index]),index],vals.loc[int(maxind[index])+1,index]]))
     return plate
 
 def tptoplate(cycle,df):
     #takes a cycle number (or an array of cycle numbers) and generates a 96 well plate formatted array from the data
-    cycle = cycle-1
-    plate = np.empty([8,12])
+    idx = [string.uppercase[i] for i in range(8)]
+    x = range(12)
+    cols = [col+1 for col in x]
+
+    plate = pd.DataFrame(index = idx, columns = cols)
 
     if type(cycle) == int:
-        for i in range(8):
-            for j in range(12):
-                plate[i,j] = df.iloc[cycle,i*12+j]
+        for i in idx:
+            for j in cols:
+                index = i + str(j)
+                plate.set_value(i,j,df.loc[cycle-1,index])
     else:
-        for i in range(8):
-            for j in range(12):
-                plate[i,j] = df.iloc[cycle[i*12+j],i*12+j]
+        for i in idx:
+            for j in cols:
+                index = i + str(j)
+                plate.set_value(i,j,df.loc[cycle[i*12+j]-1,index])
+
     return plate
