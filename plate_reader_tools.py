@@ -80,9 +80,6 @@ def computegrowthrate(OD,t):
 
     #Find the max growth rate for each well
 
-    vals = twostep.iloc[0,:].notnull()
-    twostep.iloc[0,:][vals]
-
     maxind = twostep.idxmax()
 
     maxgrowth = twostep.max()
