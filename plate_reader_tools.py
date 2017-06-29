@@ -61,6 +61,22 @@ def readplate(filename,sheetname,skiprows,rows,columns,datalabels,cycles,horz):
                 continue
     return [d,t]
 
+def readEP(filename,datalabels):
+    excelraw = pd.read_excel(filename)
+    idx = [string.uppercase[i] for i in range(8)]
+    x = range(12)
+    cols = [col+1 for col in x]
+
+    data = {dl:None for dl in datalabels}
+    counter = 0
+    for ind in excelraw.index:
+        if excelraw.iloc[ind,0] == '<>':
+            rawplate = excelraw.iloc[ind+1:ind+9,1:13].values
+            data[datalabels[counter]] = pd.DataFrame(rawplate,idx,cols)
+            counter += 1
+
+    return data
+
 def computegrowthrate(OD,t):
     #Calculate the growth rate in doublings per hour
 
