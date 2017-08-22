@@ -27,7 +27,7 @@ def readplate(filename,sheetname,skiprows,rows,columns,datalabels,cycles,horz):
     cycleindex = 0
     dataindex = 0
 
-    d[datalabels[dataindex]].set_value(cycleindex,col_labels,wholetc[col_labels].iloc[i])
+    #d[datalabels[dataindex]].set_value(cycleindex,col_labels,wholetc[col_labels].iloc[i])
 
     #Check for case #1
     if horz == 0:
