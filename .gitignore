@@ -1,4 +1,4 @@
 *.pyc
 *checkpoint.ipynb
-scripts/AHN/*
-scripts/BMH/*
+scripts/AHN/
+scripts/Ben/
