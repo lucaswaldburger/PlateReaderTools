@@ -6,44 +6,41 @@ import math
 import string
 
 def multiRead(filename, sheetname, delimiters):
+def ReadData(filename, sheetname, delimiters):
+    # instantiate variables
     wells = []
+    d = {}
+    channels = []
+    
+    #populate labels for 96 well plate
     for i in range(8):
         for j in range(12):
             wells.append(chr(i + ord('A')) + str(j + 1))
-            
-    # get date from file name
-    startDate = filename.find('20')
-    endDate = filename[startDate:].find('_')
-    date = filename[startDate:startDate + endDate]
-    
+
     # determine if multiple reads per well
     rawData = pd.read_excel(filename, 'Result sheet', 0)
     infoColumn = rawData.iloc[:, 0]
 
     if 'Mean' in list(infoColumn) and len(infoColumn[infoColumn == 'Mean'].index) == len(delimiters):
         meanIndex = infoColumn[infoColumn == 'Mean'].index
-
         channels = [np.nan] * len(meanIndex)
-
         channelCount = 0
+        
         for startRow in meanIndex:
             data = pd.read_excel(filename,'Result sheet',startRow)
             channels[channelCount] = pd.DataFrame(data.iloc[0:1,1:])
             channelCount += 1
 
-        d = {}
         for i in range(len(delimiters)):
             d[delimiters[i]] = tptoplate(1,channels[i])
         data = pd.Panel(d)
         return data
+    
     if 'Cycles / Well' in list(infoColumn):
         wellIndex = infoColumn[infoColumn == 'Cycles / Well'].index + 1
         raw_data = pd.read_excel(filename,sheetname,wellIndex[0])
-
         cycles = int(filter(str.isdigit, raw_data.columns[-1]))
 
-        d = {}
-        channels = []
         for i in range(len(delimiters)):
             raw_data = pd.read_excel(filename,sheetname,wellIndex[0 + 2 * 96])
             mean_index = []
@@ -63,11 +60,11 @@ def multiRead(filename, sheetname, delimiters):
             mean_data.index = read
             mean_data.columns = range(1,cycles+1)
             channels.append(mean_data.T)
+            
         for i in range(len(delimiters)):
             d[delimiters[i]] = channels[i]
         data = pd.Panel(d)
         return [data,t]
-    
 
 def readplate(filename,sheetname,skiprows,rows,columns,datalabels,cycles,horz):
     wholetc = pd.read_excel(filename,sheetname=sheetname,skiprows=skiprows)
