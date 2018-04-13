@@ -5,6 +5,70 @@ import pandas as pd
 import math
 import string
 
+def multiRead(filename, sheetname, delimiters):
+    wells = []
+    for i in range(8):
+        for j in range(12):
+            wells.append(chr(i + ord('A')) + str(j + 1))
+            
+    # get date from file name
+    startDate = filename.find('20')
+    endDate = filename[startDate:].find('_')
+    date = filename[startDate:startDate + endDate]
+    
+    # determine if multiple reads per well
+    rawData = pd.read_excel(filename, 'Result sheet', 0)
+    infoColumn = rawData.iloc[:, 0]
+
+    if 'Mean' in list(infoColumn) and len(infoColumn[infoColumn == 'Mean'].index) == len(delimiters):
+        meanIndex = infoColumn[infoColumn == 'Mean'].index
+
+        channels = [np.nan] * len(meanIndex)
+
+        channelCount = 0
+        for startRow in meanIndex:
+            data = pd.read_excel(filename,'Result sheet',startRow)
+            channels[channelCount] = pd.DataFrame(data.iloc[0:1,1:])
+            channelCount += 1
+
+        d = {}
+        for i in range(len(delimiters)):
+            d[delimiters[i]] = tptoplate(1,channels[i])
+        data = pd.Panel(d)
+        return data
+    if 'Cycles / Well' in list(infoColumn):
+        wellIndex = infoColumn[infoColumn == 'Cycles / Well'].index + 1
+        raw_data = pd.read_excel(filename,sheetname,wellIndex[0])
+
+        cycles = int(filter(str.isdigit, raw_data.columns[-1]))
+
+        d = {}
+        channels = []
+        for i in range(len(delimiters)):
+            raw_data = pd.read_excel(filename,sheetname,wellIndex[0 + 2 * 96])
+            mean_index = []
+            t = []
+            t_index = 0
+            read = []
+            for i in range(len(raw_data.index)):
+                if raw_data.loc[i,'Cycles / Well'] in delimiters:
+                    break
+                if raw_data.loc[i,'Cycles / Well'] in wells:
+                    read.append(raw_data.loc[i,'Cycles / Well'])
+                    mean_index.append(i+3)
+                if raw_data.loc[i,'Cycles / Well'] == 'Time [s]' and len(t) == 0:
+                    t_index = i
+            mean_data = raw_data.iloc[mean_index,1:cycles+1]
+            t = raw_data.iloc[t_index,1:cycles+1]
+            mean_data.index = read
+            mean_data.columns = range(1,cycles+1)
+            channels.append(mean_data.T)
+        for i in range(len(delimiters)):
+            d[delimiters[i]] = channels[i]
+        data = pd.Panel(d)
+        return [data,t]
+    
+
 def readplate(filename,sheetname,skiprows,rows,columns,datalabels,cycles,horz):
     wholetc = pd.read_excel(filename,sheetname=sheetname,skiprows=skiprows)
 
