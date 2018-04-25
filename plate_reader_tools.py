@@ -5,7 +5,6 @@ import pandas as pd
 import math
 import string
 
-def multiRead(filename, sheetname, delimiters):
 def ReadData(filename, sheetname, delimiters):
     # instantiate variables
     wells = []
